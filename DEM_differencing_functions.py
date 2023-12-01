@@ -29,6 +29,12 @@ from pyinterpolate import read_txt
 from pyinterpolate import build_experimental_variogram
 from pyinterpolate import TheoreticalVariogram, build_theoretical_variogram
 
+# For resample
+from rasterio.enums import Resampling
+
+# For raster outline to polygon shapfile
+from rasterio.features import dataset_features
+
 #-------------------------------------------------------
 def DEM_difference(dem1, dem2, dod):
     '''
@@ -128,6 +134,22 @@ def clip_raster(unclipped_raster, clip_shapefile, out_raster):
         
     print(f'Raster clipping complete.\nClipped raster saved to: {out_raster}')
 
+def raster_outline_to_polyshp(inras, outpolyshp):
+    '''
+    Creates a polygon shapefile of outline of raster, excluding no_data.
+    from https://gis.stackexchange.com/questions/429662/extracting-raster-outline-to-a-vector-geometry
+
+    inras: Path object to raster
+    outpolyshp: Path object to output shapefile
+    '''
+    
+    with rasterio.open(inras) as ds:
+        gdf = gpd.GeoDataFrame.from_features(dataset_features(ds, bidx=1, as_mask=True, geographic=False, band=False))
+        gdf.to_file(outpolyshp)
+
+    print(f'Polygon shapefile saved to {outpolyshp}')
+    
+
 def calculate_volume(dod):
     '''
     Report volume, gets cell size from raster metadata
@@ -170,29 +192,31 @@ def integer_align_raster(inras, outras):
 
     print(f'Alignment complete.\nInteger aligned raster written to: {outras}')
 
-def vertical_adjust_raster(input_raster, adjustment_value, output_raster):
+def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     '''
-    Use this function to vertically adjust a raster. Value provided in argument will be added to input raster
-    and saved to output raster.  Rasters must be geotiff.
+    Align raster to integer bounds, and resamples to new cell size.
+    from gis.stackexchange.com/questions/296770/aligning-many-rasters-using-pyqgis-or-python
 
-    input_raster: Path object to input raster
-    adjustment_value: floating point value that will be added to input_raster to create output_raster
-    output_raster: Path object to adjusted output raster
+    inras: Path object to input raster
+    new_cell_size: float value for new cell size
+    outras: Path object to output raster
     '''
+    src = gdal.Open(str(inras), gdalconst.GA_ReadOnly)
+    dest = gdal.Open(str(inras), gdalconst.GA_ReadOnly)
+    srcProj = src.GetProjection()
+    ulx, xres, xskew, uly, yskew, yres  = src.GetGeoTransform()
+    lrx = ulx + (src.RasterXSize * xres)
+    lry = uly + (src.RasterYSize * yres)
+    #get target bounds (expanded to nearest integer
+    t_ulx = math.floor(ulx)
+    t_uly = math.ceil(uly)
+    t_lrx = math.ceil(lrx)
+    t_lry = math.floor(lry)
+    #gdalwarp
+    ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=new_cell_size, yRes=new_cell_size, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    # Read the raster using rasterio
-    with rasterio.open(input_raster) as src:
-        # Get the raster values as a masked numpy array
-        raster_values = src.read(1,masked=True)
-        src_meta = src.meta
+    print(f'Alignment and resampling complete.\nNew raster written to: {outras}')
 
-    # Add value
-    out_raster_values = raster_values + adjustment_value
-
-    #Write new raster with same meta
-    with rasterio.open(output_raster, 'w', **src_meta) as dst:
-        # Get the raster values as a numpy array
-        dst.write(out_raster_values, indexes=1)
 
 def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
     '''
@@ -237,6 +261,32 @@ def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
     with rasterio.open(output_raster, "w", **profile) as dataset:
         dataset.write(data)
         
+    
+
+def vertical_adjust_raster(input_raster, adjustment_value, output_raster):
+    '''
+    Use this function to vertically adjust a raster. Value provided in argument will be added to input raster
+    and saved to output raster.  Rasters must be geotiff.
+
+    input_raster: Path object to input raster
+    adjustment_value: floating point value that will be added to input_raster to create output_raster
+    output_raster: Path object to adjusted output raster
+    '''
+
+    # Read the raster using rasterio
+    with rasterio.open(input_raster) as src:
+        # Get the raster values as a masked numpy array
+        raster_values = src.read(1,masked=True)
+        src_meta = src.meta
+
+    # Add value
+    out_raster_values = raster_values + adjustment_value
+
+    #Write new raster with same meta
+    with rasterio.open(output_raster, 'w', **src_meta) as dst:
+        # Get the raster values as a numpy array
+        dst.write(out_raster_values, indexes=1)
+
 
 def stable_area_stats(raster, polyshp, add_to_attribute_table : bool =False):
     '''
