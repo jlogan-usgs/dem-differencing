@@ -35,6 +35,10 @@ from rasterio.enums import Resampling
 # For raster outline to polygon shapfile
 from rasterio.features import dataset_features
 
+#For create polygon from points
+from shapely.geometry import Polygon
+from pyproj import CRS, Transformer
+
 #-------------------------------------------------------
 def DEM_difference(dem1, dem2, dod):
     '''
@@ -133,6 +137,37 @@ def clip_raster(unclipped_raster, clip_shapefile, out_raster):
         dst.write(clipped_raster)
         
     print(f'Raster clipping complete.\nClipped raster saved to: {out_raster}')
+
+def create_polygon_from_points(points_file, output_shapefile, x_col='x', y_col='y', in_crs_epsg='6339', out_crs_epsg='6339'):
+    '''
+    Creates a polygon shapefile from a csv of points with x and y columns
+    
+    points_file: Path object to csv with points and header with col labels
+    output_shapefile: Path object to clipping shapefile
+    x_col: str name of x column in header
+    y_col: str name of y column in header
+    in_crs_epsg: EPSG of CRS for input
+    out_crs_epsg: EPSG of CRS for output shp
+    
+    '''
+    # Read the points from the CSV file using pandas
+    df = pd.read_csv(points_file)
+
+    # Extract x and y coordinates
+    points = list(zip(df[x_col], df[y_col]))
+
+    # Create a Polygon object from the points
+    polygon = Polygon(points)
+
+    # Create a GeoDataFrame with the polygon, set crs
+    data = gpd.GeoDataFrame(geometry=[polygon], crs=in_crs_epsg)
+    
+    # Transform the polygon to EPSG 6339
+    data = data.to_crs(out_crs_epsg)
+
+    # Save the GeoDataFrame as a shapefile with EPSG 6339
+    data.to_file(output_shapefile, driver='ESRI Shapefile')
+    
 
 def raster_outline_to_polyshp(inras, outpolyshp):
     '''
