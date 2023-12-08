@@ -445,11 +445,10 @@ def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max
     
     # Create experimental semivariogram
     experimental_variogram = build_experimental_variogram(input_array=data, step_size=cellsize, max_range=max_range)
-    print('Use this plot to estimate range for subsequent autofit...\n\n')
     experimental_variogram.plot(plot_semivariance=True, plot_covariance=True, plot_variance=True)
     return experimental_variogram
 
-def SpatiallyCorrelatedRandomErrorAnalysis_SphericalModel(experimental_variogram, var_range=40, nugget=0):
+def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram, nugget=0):
     '''
     Use this function to plot a spherical semivariogram.  Must run SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function first.
 
@@ -458,19 +457,18 @@ def SpatiallyCorrelatedRandomErrorAnalysis_SphericalModel(experimental_variogram
     nugget: nugget, should leave at 0 for this analysis (default: 0 meters)
     '''
     #Use plot from "SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram" function to estimate range
-    sill = experimental_variogram.variance
+    # sill = experimental_variogram.variance
     
-    spherical_model = build_theoretical_variogram(experimental_variogram=experimental_variogram,
-                                                  model_type='spherical',
-                                                  sill=sill,
-                                                  rang=var_range,
-                                                  nugget=nugget)
-    
-    print(f'Spherical model RMSE: {spherical_model.rmse}\n\n')
-    spherical_model.plot()
-    return spherical_model
+    semivariogram_model = TheoreticalVariogram()
+    fitted = semivariogram_model.autofit(
+        experimental_variogram=experimental_variogram,
+        model_types='spherical',
+        nugget=0)
+    print(f"\n\nModel type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nOptimized Sill: {fitted['sill']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nOptimized Range: {fitted['range']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nRMSE: {fitted['rmse']}")
+    semivariogram_model.plot()
+    return fitted
 
-def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram, var_range=40, nugget=0):
+def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram, nugget=0):
     '''
     Use this function to plot determine an optimized semivariogram model for the stable areas.  Must run SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function first.
 
@@ -479,19 +477,19 @@ def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram
     nugget: nugget, should leave at 0 for this analysis (default: 0 meters)
     '''
     #Use plot from "SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram" function to estimate range
-    sill = experimental_variogram.variance
+    # sill = experimental_variogram.variance
     
     semivariogram_model = TheoreticalVariogram()
-    fitted = semivariogram_model.autofit(
-        experimental_variogram=experimental_variogram,
-        model_types='all',
-        nugget=0,
-        rang=var_range,
-        sill=sill)
-    print(f"Chosen model type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nSill: {fitted['sill']}\nRange: {fitted['range']}\nRMSE: {fitted['rmse']}")
+    # fitted = semivariogram_model.autofit(
+    #     experimental_variogram=experimental_variogram,
+    #     model_types='all',
+    #     nugget=0,
+    #     rang=var_range,
+    #     sill=sill)
+    # print(f"Chosen model type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nSill: {fitted['sill']}\nRange: {fitted['range']}\nRMSE: {fitted['rmse']}")
     
     fitted = semivariogram_model.autofit(experimental_variogram=experimental_variogram, nugget=0)
     print(f"\n\nOptimized model type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nOptimized Sill: {fitted['sill']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nOptimized Range: {fitted['range']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nRMSE: {fitted['rmse']}")
     semivariogram_model.plot()
-    return semivariogram_model
+    return fitted
 

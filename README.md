@@ -16,8 +16,9 @@ Some key functions included are:
 - `SpatiallyCorrelatedRandomErrorAnalysis*` functions:  Functions to help create spatial semivariogram to help estimate spatially correlated random error.
     - `SpatiallyCorrelatedRandomErrorAnalysis_DataPrep`: Prepare data to create spatial semivariogram to help estimate spatially correlated random error.  Required before other `SpatiallyCorrelatedRandomErrorAnalysis*` functions are run.
     - `SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram`: Create spatial semivariogram to help determine approximate `range` size for subsequent semivariograms.
-    - `SpatiallyCorrelatedRandomErrorAnalysis_SphericalModel`: Create spatial semivariogram using spherical model to help estimate spatially correlated random error.
-    - `SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel`: Create spatial semivariogram using an autofit model to minimize RMS and find optimized range size.
+    - `SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel`: Create spatial semivariogram using autofit to find the optimized model type to minimize RMS and find optimized range size.
+    - `SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel`: Create spatial semivariogram using spherical model and find best range and sill values.
+
 
 ### A typical workflow would be as follows: 
 
@@ -126,9 +127,6 @@ df = SpatiallyCorrelatedRandomErrorAnalysis_DataPrep(final_dod_unclipped, stable
 experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df,1, max_range=80)
 ```
 
-    Use this plot to estimate range for subsequent autofit...
-    
-    
     'Warning! Attribute is_variance is set to False but you try to plot this object! Plot has been cancelled.\n'
     
 
@@ -142,15 +140,10 @@ experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariog
 
 
 ```python
-#Use range=40 based on prelim semivariogram
-_ = SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram, var_range=40)
+#Use OptimizedModel function to fit best model type and identify range and sill
+_ = SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram)
 ```
 
-    Chosen model type: spherical
-    Nugget: 0
-    Sill: 0.00587096953275412
-    Range: 40
-    RMSE: 0.0009759893574314627
     
     
     Optimized model type: spherical
@@ -163,6 +156,27 @@ _ = SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram
 
     
 ![png](README_files/README_21_1.png)
+    
+
+
+
+```python
+#Or fit a spherical model and find optimize range and sill
+_ = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram, nugget=0)
+```
+
+    
+    
+    Model type: spherical
+    Nugget: 0
+    Optimized Sill: 0.00587096953275412 (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)
+    Optimized Range: 22.287440409342658 (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)
+    RMSE: 0.0005039054855293714
+    
+
+
+    
+![png](README_files/README_22_1.png)
     
 
 
