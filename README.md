@@ -18,6 +18,7 @@ Some key functions included are:
     - `SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram`: Create spatial semivariogram to help determine approximate `range` size for subsequent semivariograms.
     - `SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel`: Create spatial semivariogram using autofit to find the optimized model type to minimize RMS and find optimized range size.
     - `SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel`: Create spatial semivariogram using spherical model and find best range and sill values.
+    - `SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat`: Create spatial semivariogram using spherical model and find best range and sill values using Scikit Gstat library, which may perform better. Use best judgment to choose suitable sill and range for spatially correlated random error.
 
 
 ### A typical workflow would be as follows: 
