@@ -29,6 +29,11 @@ from pyinterpolate import read_txt
 from pyinterpolate import build_experimental_variogram
 from pyinterpolate import TheoreticalVariogram, build_theoretical_variogram
 
+# For spatial semivariogram, using gstat
+import skgstat as skg
+from scipy.optimize import curve_fit
+from skgstat import models
+
 # For resample
 from rasterio.enums import Resampling
 
@@ -429,7 +434,8 @@ def SpatiallyCorrelatedRandomErrorAnalysis_DataPrep(raster, polyshp, poly_id_fie
 def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max_range=80):
     '''
     Use this function to create and plot a preliminary semivariogram to be used to help estimate 
-    the correct range subsequent semivariogram plotting.
+    the correct range subsequent semivariogram plotting.  Run SpatiallyCorrelatedRandomErrorAnalysis_DataPrep
+    function first, to create dataframe of DoD raster cell x,y,z from clipped stable area in DoD.
 
     df: dataframe with x,y,z columns
     cellsize: cell size of DEM of difference
@@ -492,4 +498,44 @@ def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram
     print(f"\n\nOptimized model type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nOptimized Sill: {fitted['sill']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nOptimized Range: {fitted['range']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nRMSE: {fitted['rmse']}")
     semivariogram_model.plot()
     return fitted
+
+def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50, use_nugget=False):
+    '''
+    Use this function to plot a spherical semivariogram, using the scikit-gstat module.  Run SpatiallyCorrelatedRandomErrorAnalysis_DataPrep
+    function first, to create dataframe of DoD raster cell x,y,z from clipped stable area in DoD.
+    from:   https://scikit-gstat.readthedocs.io/en/latest/auto_examples/tutorial_01_getting_started.html
+            https://scikit-gstat.readthedocs.io/en/latest/userguide/variogram.html
+
+    df: dataframe with x,y,z columns
+    n_lags: number of lags (don't set this too high (>80?) or too low (too small will reduce resolution of output range).  Default 50?
+    use_nugget = default False
+    '''
+
+    coords = df[["x", "y"]].to_numpy()
+    val = df[["z"]].to_numpy()
+
+    V = skg.Variogram(coords, val.flatten(), maxlag='median', n_lags=n_lags, use_nugget=False, normalize=False)
+    # fig1 = V.plot(show=False)
+    
+    V.estimator = 'matheron'
+    V.model = 'spherical'
+
+    #get data from variogram and use curve_fit to find range, sill
+    xdata = V.bins
+    ydata = V.experimental
+    p0 = [np.mean(xdata), np.mean(ydata), 0]
+    cof, cov =curve_fit(models.spherical, xdata, ydata, p0=p0)
+    range, sill, nugget = (cof[0], cof[1], cof[2])
+    print(f"    range: {range}\n    sill: {sill}\n    nugget: {nugget}")
+
+    #print fit model
+    xi =np.linspace(xdata[0], xdata[-1], 100)
+    yi = [models.spherical(h, *cof) for h in xi]
+    fig2 = plt.plot(xdata, ydata, 'og')
+    plt.plot(xi, yi, '-b');
+    plt.xlabel('Distance (m)')
+    plt.ylabel('Variance')
+    plt.show()
+
+    return range, sill, nugget, V, xdata, ydata
 
