@@ -101,7 +101,8 @@ def DEM_difference(dem1, dem2, dod):
             height=difference.shape[0],
             width=difference.shape[1],
             transform=transform1,
-            nodata=dataset1.nodata
+            nodata=dataset1.nodata,
+            compress='lzw'
         )
     
         # Create a new raster file for the difference
@@ -134,7 +135,8 @@ def clip_raster(unclipped_raster, clip_shapefile, out_raster):
     clipped_meta.update({
         'height': clipped_raster.shape[1],
         'width': clipped_raster.shape[2],
-        'transform': clipped_transform
+        'transform': clipped_transform,
+        'compress':'lzw'
     })
     
     # Write the clipped raster to the output path
@@ -296,7 +298,9 @@ def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
 
         profile.update({"height": data.shape[-2],
                     "width": data.shape[-1],
-                   "transform": transform})
+                   "transform": transform,
+                   "compress":"lzw"}}
+                   )
 
     with rasterio.open(output_raster, "w", **profile) as dataset:
         dataset.write(data)
