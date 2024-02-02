@@ -299,7 +299,7 @@ def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
         profile.update({"height": data.shape[-2],
                     "width": data.shape[-1],
                    "transform": transform,
-                   "compress":"lzw"}}
+                   "compress":"lzw"}
                    )
 
     with rasterio.open(output_raster, "w", **profile) as dataset:
