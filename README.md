@@ -9,7 +9,8 @@ Some key functions included are:
 - `create_polygon_from_points`: Create shapefile from csv of points.  Used to create clipping mask from x,y locations of measurements (for instance bathymetry points)
 - `clip_raster`: Clip a raster using a polygon shapefile
 - `raster_outline_to_polyshp`: Create a polygon shapefile from raster footprint.
-- `vertical_adjust_raster`: Adjust raster up or down. Used for co-registration before differencing.
+- `vertical_adjust_raster_uniform`: Adjust raster vertically, using a uniform adjustment value. Used for co-registration before differencing.
+- `vertical_adjust_raster_with_raster`: Adjust raster vertically, using a adjustment raster (such as an error trend surface). Used for co-registration before differencing.
 - `DEM_difference`: Difference two DEMs to create a DoD (DEM of difference)
 - `calculate_volume`: Calulate the volume of a DoD
 - `stable_area_stats`: Conduct zonal statistics on a DoD using polygons, and optionally write statistics to shapefile attribute table. Used to assess DoD in stable areas, for uncertainty calculations.
@@ -80,7 +81,7 @@ inras2_aligned_resampled = Path(r"C:\dem_2_1m_align.tif")
 inras2_aligned_resampled_coregistered = Path(r"C:\dem_2_1m_align_coreg.tif")
 
 #For instance, the function below adds 0.281 meters to the input DEM to vertically adjust it upward.
-vertical_adjust_raster(inras2_aligned_resampled, 0.281, inras2_aligned_resampled_coregistered)
+vertical_adjust_raster_uniform(inras2_aligned_resampled, 0.281, inras2_aligned_resampled_coregistered)
 ```
 
 ##### Redo DEM differencing with co-registered DEM.

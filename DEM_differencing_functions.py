@@ -307,9 +307,9 @@ def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
         
     
 
-def vertical_adjust_raster(input_raster, adjustment_value, output_raster):
+def vertical_adjust_raster_uniform(input_raster, adjustment_value, output_raster):
     '''
-    Use this function to vertically adjust a raster. Value provided in argument will be added to input raster
+    Use this function to vertically adjust a raster with a uniform adjustment value. Value provided in argument will be added to input raster
     and saved to output raster.  Rasters must be geotiff.
 
     input_raster: Path object to input raster
@@ -330,6 +330,69 @@ def vertical_adjust_raster(input_raster, adjustment_value, output_raster):
     with rasterio.open(output_raster, 'w', **src_meta) as dst:
         # Get the raster values as a numpy array
         dst.write(out_raster_values, indexes=1)
+
+
+
+def vertical_adjust_raster_with_raster(input_raster, adjustment_raster, output_raster):
+    '''
+    Use this function to apply a vertical adjustment raster (such as an error trend surface) to an input raster. Rasters must be geotiff.
+
+    input_raster: Path object to input raster
+    adjustment_raster: adjustment raster that will be added to input_raster to create output_raster
+    output_raster: Path object to adjusted output raster
+    '''
+
+    with rasterio.open(input_raster) as dataset1, rasterio.open(adjustment_raster) as dataset2:   
+        # Retrieve the affine transformation matrices
+        transform1 = dataset1.transform
+        transform2 = dataset2.transform
+    
+        # Determine the common extent
+        bounds1 = dataset1.bounds
+        bounds2 = dataset2.bounds
+        intersection_bounds = BoundingBox(
+            max(bounds1.left, bounds2.left),
+            max(bounds1.bottom, bounds2.bottom),
+            min(bounds1.right, bounds2.right),
+            min(bounds1.top, bounds2.top)
+            )
+    
+       # Update the transformation matrices to the common extent
+        window1 = dataset1.window(*intersection_bounds)
+        window2 = dataset2.window(*intersection_bounds)
+        transform1 = rasterio.windows.transform(window1, transform1)
+        transform2 = rasterio.windows.transform(window2, transform2)
+    
+        # Read the subset of raster data within the common extent
+        input_raster_values = dataset1.read(1, window=window1)
+        adjustment_raster_values = dataset2.read(1, window=window2)
+    
+        # Add value
+        out_raster_values = input_raster_values + adjustment_raster_values
+        
+        # Set nodata values in the difference array
+        nodata_mask = np.logical_or(input_raster_values == dataset1.nodata, adjustment_raster_values == dataset2.nodata)
+        out_raster_values[nodata_mask] = dataset1.nodata
+    
+        # Retrieve the metadata from one of the input rasters
+        metadata = dataset1.meta
+    
+        # Update the metadata to reflect the difference raster
+        metadata.update(
+            count=1,
+            height=out_raster_values.shape[0],
+            width=out_raster_values.shape[1],
+            transform=transform1,
+            nodata=dataset1.nodata,
+            compress='lzw'
+        )
+    
+        # Create a new raster file for the difference
+        output_file = output_raster
+        with rasterio.open(str(output_file), 'w', **metadata) as output_dataset:
+            output_dataset.write(out_raster_values, 1)
+    
+    print(f"Raster adjustment complete.\n\nPerformed the following operation:\n\n        {input_raster.name} + {adjustment_raster.name} = {output_raster.name}\n\nOutput written to {output_raster}")
 
 
 def stable_area_stats(raster, polyshp, add_to_attribute_table : bool =False):
