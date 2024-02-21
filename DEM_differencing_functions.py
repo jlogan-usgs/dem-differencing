@@ -20,7 +20,7 @@ import os
 from osgeo import gdal, gdalconst
 gdal.UseExceptions()
 
-#For zonatl stats
+#For zonal stats
 from rasterio.features import rasterize
 from rasterstats import zonal_stats
 
@@ -37,7 +37,7 @@ from skgstat import models
 # For resample
 from rasterio.enums import Resampling
 
-# For raster outline to polygon shapfile
+# For raster outline to polygon shapefile
 from rasterio.features import dataset_features
 
 #For create polygon from points
@@ -214,30 +214,37 @@ def integer_align_raster(inras, outras):
     '''
     Align raster to integer bounds.
     from gis.stackexchange.com/questions/296770/aligning-many-rasters-using-pyqgis-or-python
+    
+    Use gdalwarp targetAlignedPixels (-tap) to ensure cell alignment.
+    -tap requires -tr argument.  Make sure -tr is set to whole cm by rounding to 2 deminal places.
 
     inras: Path object to input raster
     outras: Path object to output raster
     '''
     src = gdal.Open(str(inras), gdalconst.GA_ReadOnly)
-    dest = gdal.Open(str(inras), gdalconst.GA_ReadOnly)
     srcProj = src.GetProjection()
-    ulx, xres, xskew, uly, yskew, yres  = src.GetGeoTransform()
-    lrx = ulx + (src.RasterXSize * xres)
-    lry = uly + (src.RasterYSize * yres)
+    ulx, xres_in, xskew, uly, yskew, yres_in  = src.GetGeoTransform()
+    lrx = ulx + (src.RasterXSize * xres_in)
+    lry = uly + (src.RasterYSize * yres_in)
     #get target bounds (expanded to nearest integer
     t_ulx = math.floor(ulx)
     t_uly = math.ceil(uly)
     t_lrx = math.ceil(lrx)
     t_lry = math.floor(lry)
+    #make sure cell size is rounded to cm
+    xres = np.round(xres_in,2)
+    yres = np.round(yres_in,2)
     #gdalwarp
-    ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
+    ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=xres, yRes=yres, targetAlignedPixels=True, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    print(f'Alignment complete.\nInteger aligned raster written to: {outras}')
+    print(f'Alignment complete.\n    Input cell size: {xres_in}\n    Output cell size: {xres}\nInteger aligned raster written to: {outras}')
 
 def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     '''
     Align raster to integer bounds, and resamples to new cell size.
     from gis.stackexchange.com/questions/296770/aligning-many-rasters-using-pyqgis-or-python
+    
+    Use gdalwarp targetAlignedPixels (-tap) to ensure cell alignment.
 
     inras: Path object to input raster
     new_cell_size: float value for new cell size
@@ -255,9 +262,9 @@ def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     t_lrx = math.ceil(lrx)
     t_lry = math.floor(lry)
     #gdalwarp
-    ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=new_cell_size, yRes=new_cell_size, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
+    ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=new_cell_size, yRes=new_cell_size, targetAlignedPixels=True, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    print(f'Alignment and resampling complete.\nNew raster written to: {outras}')
+    print(f'Alignment and resampling complete.\n    Input cell size: {xres}\n    Output cell size: {new_cell_size}\nNew raster written to: {outras}')
 
 
 def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
