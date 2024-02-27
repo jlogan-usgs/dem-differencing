@@ -204,11 +204,23 @@ def calculate_volume(dod):
         masked_raster = src.read(1, masked=True)
         #get cell size x, y
         cellsize_x, cellsize_y  = src.res
-        #calc vol, area    
-        vol = np.sum(masked_raster) * cellsize_x * cellsize_y
-        area = masked_raster.count() * cellsize_x * cellsize_y
+        
+        #calc net vol, area    
+        vol_net = np.sum(masked_raster) * cellsize_x * cellsize_y
+        area_net = masked_raster.count() * cellsize_x * cellsize_y
+
+        #calc deposition (where dod is positive) and area
+        vol_pos = np.sum(masked_raster[masked_raster > 0]) * cellsize_x * cellsize_y
+        area_pos = masked_raster[masked_raster > 0].count() * cellsize_x * cellsize_y
+
+        #calc erosion (where dod is negative) and area
+        vol_neg = np.sum(masked_raster[masked_raster < 0]) * cellsize_x * cellsize_y
+        area_neg = masked_raster[masked_raster < 0].count() * cellsize_x * cellsize_y
+        
         #report
-        print(f'Volume: {vol} m^3\nArea: {area} m^2\nNumber of cells: {masked_raster.count()}\nCell size X: {cellsize_x}\nCell size Y: {cellsize_y}')
+        print(f'****************\nNet volume change\n****************\n    Net volume: {vol_net} m^3\n    Area: {area_net} m^2\n    Number of cells: {masked_raster.count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+        print(f'****************\nDeposition (DoD positive)\n****************\n    Deposition volume: {vol_pos} m^3\n    Area: {area_pos} m^2\n    Number of cells: {masked_raster[masked_raster > 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+        print(f'****************\nErosion (DoD negative)\n****************\n    Erosion volume: {vol_neg} m^3\n    Area: {area_neg} m^2\n    Number of cells: {masked_raster[masked_raster < 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
 
 def integer_align_raster(inras, outras):
     '''
