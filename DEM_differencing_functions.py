@@ -110,7 +110,7 @@ def DEM_difference(dem1, dem2, dod):
         with rasterio.open(str(output_file), 'w', **metadata) as output_dataset:
             output_dataset.write(difference, 1)
     
-    print(f"Raster difference complete.\n\nPerformed the following operation:\n\n        {dem2.name} - {dem1.name} = {dod.name}\n\nOutput written to {dod}")
+    print(f"****************\nRaster difference complete.\n    Performed the following operation:\n        {dem2.name} - {dem1.name} = {dod.name}\n\nOutput written to {dod}\n****************\n")
 
 
 def clip_raster(unclipped_raster, clip_shapefile, out_raster):
@@ -143,7 +143,7 @@ def clip_raster(unclipped_raster, clip_shapefile, out_raster):
     with rasterio.open(out_raster, 'w', **clipped_meta) as dst:
         dst.write(clipped_raster)
         
-    print(f'Raster clipping complete.\nClipped raster saved to: {out_raster}')
+    print(f'****************\nRaster clipping complete.\n    Clipped raster saved to: {out_raster}\n****************\n')
 
 def create_polygon_from_points(points_file, output_shapefile, x_col='x', y_col='y', in_crs_epsg='6339', out_crs_epsg='6339'):
     '''
@@ -189,7 +189,7 @@ def raster_outline_to_polyshp(inras, outpolyshp):
         gdf = gpd.GeoDataFrame.from_features(dataset_features(ds, bidx=1, as_mask=True, geographic=False, band=False))
         gdf.to_file(outpolyshp)
 
-    print(f'Polygon shapefile saved to {outpolyshp}')
+    print(f'****************\nPolygon shapefile saved to {outpolyshp}\n****************\n')
     
 
 def calculate_volume(dod):
@@ -249,7 +249,7 @@ def integer_align_raster(inras, outras):
     #gdalwarp
     ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=xres, yRes=yres, targetAlignedPixels=True, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    print(f'Alignment complete.\n    Input cell size: {xres_in}\n    Output cell size: {xres}\nInteger aligned raster written to: {outras}')
+    print(f'****************\nAlignment complete.\n    Input cell size: {xres_in}\n    Input origin: {ulx}, {uly}\n\n    Output cell size: {xres}\n    Output origin: {t_ulx}, {t_uly}\n\nInteger aligned raster written to: {outras}\n****************\n')
 
 def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     '''
@@ -276,7 +276,7 @@ def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     #gdalwarp
     ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=new_cell_size, yRes=new_cell_size, targetAlignedPixels=True, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    print(f'Alignment and resampling complete.\n    Input cell size: {xres}\n    Output cell size: {new_cell_size}\nNew raster written to: {outras}')
+    print(f'****************\nAlignment complete.\n    Input cell size: {xres_in}\n    Input origin: {ulx}, {uly}\n\n    Output cell size: {xres}\n    Output origin: {t_ulx}, {t_uly}\n\nInteger aligned raster written to: {outras}\n****************\n')
 
 
 def resample_raster_bilinear(input_raster, new_cell_size, output_raster):
@@ -411,7 +411,7 @@ def vertical_adjust_raster_with_raster(input_raster, adjustment_raster, output_r
         with rasterio.open(str(output_file), 'w', **metadata) as output_dataset:
             output_dataset.write(out_raster_values, 1)
     
-    print(f"Raster adjustment complete.\n\nPerformed the following operation:\n\n        {input_raster.name} + {adjustment_raster.name} = {output_raster.name}\n\nOutput written to {output_raster}")
+    print(f"****************\nRaster adjustment complete.\n    Performed the following operation:\n        {input_raster.name} + {adjustment_raster.name} = {output_raster.name}\n\nOutput written to {output_raster}\n****************\n")
 
 
 def stable_area_stats(raster, polyshp, add_to_attribute_table : bool =False):
