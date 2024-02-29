@@ -194,7 +194,7 @@ def raster_outline_to_polyshp(inras, outpolyshp):
 
 def calculate_volume(dod):
     '''
-    Report volume, gets cell size from raster metadata
+    Report volume, gets cell size from raster metadata. Returns dataframe with values.
 
     dod: Path object to DoD
     '''
@@ -216,11 +216,26 @@ def calculate_volume(dod):
         #calc erosion (where dod is negative) and area
         vol_neg = np.sum(masked_raster[masked_raster < 0]) * cellsize_x * cellsize_y
         area_neg = masked_raster[masked_raster < 0].count() * cellsize_x * cellsize_y
-        
+       
         #report
-        print(f'****************\nNet volume change\n****************\n    Net volume: {vol_net} m^3\n    Area: {area_net} m^2\n    Number of cells: {masked_raster.count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
-        print(f'****************\nDeposition (DoD positive)\n****************\n    Deposition volume: {vol_pos} m^3\n    Area: {area_pos} m^2\n    Number of cells: {masked_raster[masked_raster > 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
-        print(f'****************\nErosion (DoD negative)\n****************\n    Erosion volume: {vol_neg} m^3\n    Area: {area_neg} m^2\n    Number of cells: {masked_raster[masked_raster < 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+        # print(f'****************\nNet volume change\n****************\n    Net volume: {vol_net} m^3\n    Area: {area_net} m^2\n    Number of cells: {masked_raster.count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+        # print(f'****************\nDeposition (DoD positive)\n****************\n    Deposition volume: {vol_pos} m^3\n    Area: {area_pos} m^2\n    Number of cells: {masked_raster[masked_raster > 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+        # print(f'****************\nErosion (DoD negative)\n****************\n    Erosion volume: {vol_neg} m^3\n    Area: {area_neg} m^2\n    Number of cells: {masked_raster[masked_raster < 0].count()}\n    Cell size X: {cellsize_x}\n    Cell size Y: {cellsize_y}\n')
+    
+        results_dict = {'dod': str(Path(dod).name), 
+                        'cellsize_x': cellsize_x,
+                        'cellsize_y': cellsize_y,
+                        'net_vol': vol_net,
+                        'net_area': area_net,
+                        'deposition_vol': vol_pos,
+                        'deposition_area': area_pos,
+                        'erosion_vol': vol_neg,
+                        'erosion_area': area_neg
+                       }
+        
+        df = pd.DataFrame([results_dict])
+
+    return df
 
 def integer_align_raster(inras, outras):
     '''
