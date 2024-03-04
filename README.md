@@ -7,8 +7,10 @@ Some key functions included are:
 - `integer_align_resample_raster_bilinear`: Align raster to integer bounds and resample to new cell size. 
 - `resample_raster_bilinear`: Resample raster to new cell size.
 - `create_polygon_from_points`: Create shapefile from csv of points.  Used to create clipping mask from x,y locations of measurements (for instance bathymetry points)
-- `clip_raster`: Clip a raster using a polygon shapefile
 - `raster_outline_to_polyshp`: Create a polygon shapefile from raster footprint.
+- `clip_raster_with_polygon`: Clip a raster using a polygon shapefile
+- `mask_raster_with_polygon`: Mask a raster (erase cells) using a polygon shapefile
+- `mask_raster_with_raster`: Mask a raster (erase cells) using a mask raster. Areas of overlap with mask raster will be removed.
 - `vertical_adjust_raster_uniform`: Adjust raster vertically, using a uniform adjustment value. Used for co-registration before differencing.
 - `vertical_adjust_raster_with_raster`: Adjust raster vertically, using a adjustment raster (such as an error trend surface). Used for co-registration before differencing.
 - `DEM_difference`: Difference two DEMs to create a DoD (DEM of difference)
@@ -116,7 +118,7 @@ final_dod_unclipped = Path(r"C:\final_dod_unclipped.tif")
 final_dod_clipped = Path(r"C:\final_dod_clipped.tif")
 clip_shp = Path(r"C:\AnalysisArea.shp")
 
-clip_raster(final_dod_unclipped, clip_shp, final_dod_clipped)
+clip_raster_with_polygon(final_dod_unclipped, clip_shp, final_dod_clipped)
 ```
 
 ##### Prepare data and plot semivariogram to assist with estimating spatially correlated random error in uncertainty analysis.  Use largest available stable area in DoD.
