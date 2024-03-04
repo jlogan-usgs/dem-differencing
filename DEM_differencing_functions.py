@@ -16,6 +16,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 import os
+import shutil
 
 from osgeo import gdal, gdalconst
 gdal.UseExceptions()
@@ -113,7 +114,7 @@ def DEM_difference(dem1, dem2, dod):
     print(f"****************\nRaster difference complete.\n    Performed the following operation:\n        {dem2.name} - {dem1.name} = {dod.name}\n\nOutput written to {dod}\n****************\n")
 
 
-def clip_raster(unclipped_raster, clip_shapefile, out_raster):
+def clip_raster_with_polygon(unclipped_raster, clip_shapefile, out_raster):
     '''
     Use rasterio to clip a raster using a shapefile
     
@@ -144,6 +145,65 @@ def clip_raster(unclipped_raster, clip_shapefile, out_raster):
         dst.write(clipped_raster)
         
     print(f'****************\nRaster clipping complete.\n    Clipped raster saved to: {out_raster}\n****************\n')
+    
+def mask_raster_with_polygon(unmasked_raster, mask_shapefile, out_raster):
+    '''
+    Use rasterio to mask a raster using a shapefile
+    
+    unmasked_raster: Path object to raster
+    mask_shapefile: Path object to masking shapefile
+    out_raster: Path object to output clipped raster (geotiff, .tif)
+    '''
+    
+    # Read the shapefile using geopandas
+    shapefile = gpd.read_file(mask_shapefile)
+    
+    # Read the raster using rasterio
+    with rasterio.open(unmasked_raster) as src:
+        # Mask the raster using the shapefile geometry (invert=True)
+        clipped_raster, clipped_transform = mask(src, shapefile.geometry, invert=True)
+        clipped_meta = src.meta
+    
+    # Update the metadata of the clipped raster
+    clipped_meta.update({
+        'height': clipped_raster.shape[1],
+        'width': clipped_raster.shape[2],
+        'transform': clipped_transform,
+        'compress':'lzw'
+    })
+    
+    # Write the clipped raster to the output path
+    with rasterio.open(out_raster, 'w', **clipped_meta) as dst:
+        dst.write(clipped_raster)
+        
+    print(f'****************\nRaster masking complete.\n    Masked raster saved to: {out_raster}\n****************\n')
+    
+def mask_raster_with_raster(inras, maskras, outras):
+    '''
+    Mask a raster (remove cells) using a mask raster.  Must have same crs and cells should be aligned.
+    
+    inras: Path object to raster to be masked
+    maskras: Path object to mask raster
+    outras: Path object to output masked raster (geotiff, .tif)
+    '''
+    #ensure that inputs are path objects
+    inras = Path(inras)
+    maskras = Path(maskras)
+    
+    #make temporary directory for shapefile
+    tempdir = Path(maskras.parent,'tempshp')
+    tempdir.mkdir(exist_ok=True)
+
+    #make temporary masking polygon
+    maskpolypath = Path(maskras.parent,'tempshp',maskras.stem + '_boundary_temp.shp')
+    raster_outline_to_polyshp(maskras, maskpolypath)
+    print('... masking shapefile will be removed after operation\n')
+
+    #mask raster with temporary polygon
+    mask_raster_with_polygon(inras, maskpolypath, outras)
+
+    #delete temporary polygon and dir
+    shutil.rmtree(tempdir)
 
 def create_polygon_from_points(points_file, output_shapefile, x_col='x', y_col='y', in_crs_epsg='6339', out_crs_epsg='6339'):
     '''
