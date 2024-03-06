@@ -489,7 +489,7 @@ def vertical_adjust_raster_with_raster(input_raster, adjustment_raster, output_r
     print(f"****************\nRaster adjustment complete.\n    Performed the following operation:\n        {input_raster.name} + {adjustment_raster.name} = {output_raster.name}\n\nOutput written to {output_raster}\n****************\n")
 
 
-def stable_area_stats(raster, polyshp, add_to_attribute_table : bool =False):
+def stable_area_stats(raster, polyshp, add_to_attribute_table: bool=False):
     '''
     Calculate zonal statstics for a polygon shapefile,
     and optionally add them as attributes to attribute table.
@@ -527,8 +527,9 @@ def stable_area_stats(raster, polyshp, add_to_attribute_table : bool =False):
     shapefile['std'] = [stat['std'] for stat in stats]
     shapefile['sum'] = [stat['sum'] for stat in stats]
     shapefile['mae'] = [stat['mae'] for stat in stats]
+    shapefile['area_m_sq'] = shapefile['geometry'].area
 
-    df = shapefile[['id','mean','max','min','std','sum','mae']]
+    df = shapefile[['id','mean','max','min','std','sum','mae','area_m_sq']]
        
     if add_to_attribute_table:
         # Save attributes to the updated shapefile
@@ -660,7 +661,7 @@ def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram
     semivariogram_model.plot()
     return fitted
 
-def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50, use_nugget=False):
+def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50, use_nugget: bool=False):
     '''
     Use this function to plot a spherical semivariogram, using the scikit-gstat module.  Run SpatiallyCorrelatedRandomErrorAnalysis_DataPrep
     function first, to create dataframe of DoD raster cell x,y,z from clipped stable area in DoD.
@@ -675,7 +676,7 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
     coords = df[["x", "y"]].to_numpy()
     val = df[["z"]].to_numpy()
 
-    V = skg.Variogram(coords, val.flatten(), maxlag='median', n_lags=n_lags, use_nugget=False, normalize=False)
+    V = skg.Variogram(coords, val.flatten(), maxlag='median', n_lags=n_lags, use_nugget=use_nugget, normalize=False)
     # fig1 = V.plot(show=False)
     
     V.estimator = 'matheron'
