@@ -701,3 +701,75 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
 
     return range, sill, nugget, V, xdata, ydata
 
+def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], max_range=50, dod_for_spatially_correlated_random_error='same', gstat: bool=True, pyinterp: bool=True):
+    '''
+    Aggregate spatial stats (including spatially correlated random error) for stable area polygons into a table.
+
+    dod: dod path
+    polyshp: shapefile with stable area polygons
+    poly_id_field: name of field with polygon ids
+    poly_id: list of polygon ids for which spatially correlated random error stats will be calculated.  If 'all', all will be used.
+    max_range: max. range for spatial variogram estimates
+    dod_for_spatially_correlated_random_error:  dod to be used for spatially correlated random error analysis. 
+                                                If blank ('same'), the dod referenced in 'dod' argument will be used.
+                                                Different dod (downsampled) can be supplied if memory requirements limit resolution.
+    gstat: Run spatially correlated random error analysis using Scikit gstat. bool default True
+    pyinterp: Run spatially correlated random error analysis using pyinterp. bool default True
+    '''
+
+    #make sure objects are paths
+    dod = Path(dod)
+    polyshp = Path(polyshp)
+
+    #set dod params
+    if dod_for_spatially_correlated_random_error=='same':
+        dod_for_spatially_correlated_random_error = dod
+
+    # Get cell sizes using rasterio
+    with rasterio.open(dod) as src:
+        dodcellsize_x, dodcellsize_y  = src.res
+    if dod_for_spatially_correlated_random_error != dod:
+        with rasterio.open(dod_for_spatially_correlated_random_error) as src:
+            scedodcellsize_x, scedodcellsize_y  = src.res
+    else:
+        scedodcellsize_x = dodcellsize_x
+
+    #run stable area stats
+    df = stable_area_stats(dod, polyshp, add_to_attribute_table=False)
+
+    #set new col
+    df['dod'] = dod.name
+    df['dod_cellsize'] = dodcellsize_x
+    df['sce_dod'] = dod_for_spatially_correlated_random_error.name
+    df['sce_dod_cellsize'] = scedodcellsize_x
+    df['sce_max_range'] = max_range
+    df['sce_num_pts'] = np.nan
+    df['gstat_sill'] = np.nan
+    df['gstat_range'] = np.nan
+    df['pyinterp_sill'] = np.nan
+    df['pyinterp_range'] = np.nan
+    df['pyinterp_rmse'] = np.nan
+
+    #iterate through rows (polygons) in df to run spatially correlated error analysis
+    for index, row in df.iterrows():
+        if 'all' in poly_id or row[poly_id_field] in poly_id:
+            #run spatially correlated random error analysis on this polygon
+            scedf = SpatiallyCorrelatedRandomErrorAnalysis_DataPrep(dod_for_spatially_correlated_random_error,
+                                                                     polyshp,
+                                                                     poly_id_field=poly_id_field, 
+                                                                     poly_id=row['id'])
+            df.loc[index,'sce_num_pts'] = len(scedf)
+            
+            if gstat:
+                range, sill, nugget, V, xdata, ydata = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(scedf, n_lags=max_range, use_nugget=False)
+                df.loc[index,'gstat_sill'] = sill
+                df.loc[index,'gstat_range'] = range
+
+            if pyinterp:
+                experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(scedf, scedodcellsize_x, max_range=max_range);
+                fitted = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram)
+                df.loc[index,'pyinterp_sill'] = fitted['sill']
+                df.loc[index,'pyinterp_range'] = fitted['range']
+                df.loc[index,'pyinterp_rmse'] = fitted['rmse']
+
+    return df
