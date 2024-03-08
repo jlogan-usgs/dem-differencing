@@ -688,7 +688,8 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
     p0 = [np.mean(xdata), np.mean(ydata), 0]
     cof, cov =curve_fit(models.spherical, xdata, ydata, p0=p0)
     range, sill, nugget = (cof[0], cof[1], cof[2])
-    print(f"    range: {range}\n    sill: {sill}\n    nugget: {nugget}")
+    rmse = V.rmse
+    print(f"    range: {range}\n    sill: {sill}\n    rmse:    {rmse}\n    nugget: {nugget}")
 
     #print fit model
     xi =np.linspace(xdata[0], xdata[-1], 100)
@@ -699,9 +700,9 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
     plt.ylabel('Variance')
     plt.show()
 
-    return range, sill, nugget, V, xdata, ydata
+    return range, sill, nugget, rmse, V, xdata, ydata
 
-def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], max_range=50, dod_for_spatially_correlated_random_error='same', gstat: bool=True, pyinterp: bool=True):
+def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], max_range=50, dod_for_spatially_correlated_random_error='same', downsamplefrac=1.0, gstat: bool=True, pyinterp: bool=True):
     '''
     Aggregate spatial stats (including spatially correlated random error) for stable area polygons into a table.
 
@@ -713,6 +714,9 @@ def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], ma
     dod_for_spatially_correlated_random_error:  dod to be used for spatially correlated random error analysis. 
                                                 If blank ('same'), the dod referenced in 'dod' argument will be used.
                                                 Different dod (downsampled) can be supplied if memory requirements limit resolution.
+    downsamplefrac: fraction to downsample input point data before spatially correlated random error calcs, if needed. 
+                                                If 1.0, then all points will be used.  If less than 1.0 (0-1), then input points 
+                                                will be randomly sampled to fraction of input.
     gstat: Run spatially correlated random error analysis using Scikit gstat. bool default True
     pyinterp: Run spatially correlated random error analysis using pyinterp. bool default True
     '''
@@ -746,6 +750,7 @@ def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], ma
     df['sce_num_pts'] = np.nan
     df['gstat_sill'] = np.nan
     df['gstat_range'] = np.nan
+    df['gstat_rmse'] = np.nan
     df['pyinterp_sill'] = np.nan
     df['pyinterp_range'] = np.nan
     df['pyinterp_rmse'] = np.nan
@@ -758,18 +763,35 @@ def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], ma
                                                                      polyshp,
                                                                      poly_id_field=poly_id_field, 
                                                                      poly_id=row['id'])
+                                                                     
+            #sample input points if needed
+            if downsamplefrac != 1:
+                scedf = scedf.sample(frac=downsamplefrac, random_state=1)
             df.loc[index,'sce_num_pts'] = len(scedf)
             
             if gstat:
-                range, sill, nugget, V, xdata, ydata = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(scedf, n_lags=max_range, use_nugget=False)
-                df.loc[index,'gstat_sill'] = sill
-                df.loc[index,'gstat_range'] = range
+                try:
+                    range, sill, nugget, rmse, _, _, _ = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(scedf, n_lags=max_range, use_nugget=False)
+                    df.loc[index,'gstat_sill'] = sill
+                    df.loc[index,'gstat_range'] = range
+                    df.loc[index,'gstat_rmse'] = rmse
+                except:
+                    print('Problem encountered while executing function SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat.\n    Setting values to -9999 and continuing to next polygon.')
+                    df.loc[index,'gstat_sill'] = -9999
+                    df.loc[index,'gstat_range'] = -9999
+                    df.loc[index,'gstat_rmse'] = -9999
 
             if pyinterp:
-                experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(scedf, scedodcellsize_x, max_range=max_range);
-                fitted = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram)
-                df.loc[index,'pyinterp_sill'] = fitted['sill']
-                df.loc[index,'pyinterp_range'] = fitted['range']
-                df.loc[index,'pyinterp_rmse'] = fitted['rmse']
+                try:
+                    experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(scedf, scedodcellsize_x, max_range=max_range);
+                    fitted = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram)
+                    df.loc[index,'pyinterp_sill'] = fitted['sill']
+                    df.loc[index,'pyinterp_range'] = fitted['range']
+                    df.loc[index,'pyinterp_rmse'] = fitted['rmse']
+                except: 
+                    print('Problem encountered while executing function SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram or SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel.\n    Setting values to -9999 and continuing to next polygon.')
+                    df.loc[index,'pyinterp_sill'] = -9999
+                    df.loc[index,'pyinterp_range'] = -9999
+                    df.loc[index,'pyinterp_rmse'] = -9999
 
     return df
