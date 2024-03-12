@@ -593,7 +593,7 @@ def SpatiallyCorrelatedRandomErrorAnalysis_DataPrep(raster, polyshp, poly_id_fie
 
     return df
 
-def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max_range=80):
+def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max_range=80, plot: bool=True):
     '''
     Use this function to create and plot a preliminary semivariogram to be used to help estimate 
     the correct range subsequent semivariogram plotting.  Run SpatiallyCorrelatedRandomErrorAnalysis_DataPrep
@@ -602,6 +602,7 @@ def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max
     df: dataframe with x,y,z columns
     cellsize: cell size of DEM of difference
     max_range: maximum range for prelim semivariogram (something larger than predicted range, default 80 meters)
+    plot: boolean to plot semivariogram (default=True)
 
     '''
     #Get the semi-variogram values through kriging 
@@ -613,16 +614,22 @@ def SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(df, cellsize, max
     
     # Create experimental semivariogram
     experimental_variogram = build_experimental_variogram(input_array=data, step_size=cellsize, max_range=max_range)
-    experimental_variogram.plot(plot_semivariance=True, plot_covariance=True, plot_variance=True)
+    
+    if plot:
+    #show plot of semivariogram
+        experimental_variogram.plot(plot_semivariance=True, plot_covariance=True, plot_variance=True)
+        
     return experimental_variogram
 
-def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram, nugget=0):
+def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram, nugget=0, plot: bool=True):
     '''
     Use this function to plot a spherical semivariogram.  Must run SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function first.
 
     experimental_variogram: variogram object from SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function
     var_range: range estimated from semivariogram plotted with SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function
     nugget: nugget, should leave at 0 for this analysis (default: 0 meters)
+    plot: boolean to plot semivariogram (default=True)
+    
     '''
     #Use plot from "SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram" function to estimate range
     # sill = experimental_variogram.variance
@@ -633,16 +640,22 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variog
         model_types='spherical',
         nugget=0)
     print(f"\n\nModel type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nOptimized Sill: {fitted['sill']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nOptimized Range: {fitted['range']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nRMSE: {fitted['rmse']}")
-    semivariogram_model.plot()
+    
+    if plot:
+    #show plot of semivariogram
+        semivariogram_model.plot()
+        
     return fitted
 
-def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram, nugget=0):
+def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram, nugget=0, plot: bool=True):
     '''
     Use this function to plot determine an optimized semivariogram model for the stable areas.  Must run SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function first.
 
     experimental_variogram: variogram object from SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function
     var_range: range estimated from semivariogram plotted with SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram function
     nugget: nugget, should leave at 0 for this analysis (default: 0 meters)
+    plot: boolean to plot semivariogram (default=True)
+    
     '''
     #Use plot from "SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram" function to estimate range
     # sill = experimental_variogram.variance
@@ -658,10 +671,14 @@ def SpatiallyCorrelatedRandomErrorAnalysis_OptimizedModel(experimental_variogram
     
     fitted = semivariogram_model.autofit(experimental_variogram=experimental_variogram, nugget=0)
     print(f"\n\nOptimized model type: {fitted['model_type']}\nNugget: {fitted['nugget']}\nOptimized Sill: {fitted['sill']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nOptimized Range: {fitted['range']} (USE THIS VALUE FOR SPATIALLY CORRELATED RANDOM ERROR VOLUMETRIC UNCERTAINTY CALCULATIONS)\nRMSE: {fitted['rmse']}")
-    semivariogram_model.plot()
+    
+    if plot:
+    #show plot of semivariogram
+        semivariogram_model.plot()
+        
     return fitted
 
-def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50, use_nugget: bool=False):
+def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50, use_nugget: bool=False, plot: bool=True):
     '''
     Use this function to plot a spherical semivariogram, using the scikit-gstat module.  Run SpatiallyCorrelatedRandomErrorAnalysis_DataPrep
     function first, to create dataframe of DoD raster cell x,y,z from clipped stable area in DoD.
@@ -671,6 +688,8 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
     df: dataframe with x,y,z columns
     n_lags: number of lags (don't set this too high (>80?) or too low (too small will reduce resolution of output range).  Default 50?
     use_nugget = default False
+    plot: boolean to plot semivariogram (default=True)
+        
     '''
 
     coords = df[["x", "y"]].to_numpy()
@@ -690,15 +709,16 @@ def SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel_gstat(df, n_lags=50
     range, sill, nugget = (cof[0], cof[1], cof[2])
     rmse = V.rmse
     print(f"    range: {range}\n    sill: {sill}\n    rmse:    {rmse}\n    nugget: {nugget}")
-
-    #print fit model
-    xi =np.linspace(xdata[0], xdata[-1], 100)
-    yi = [models.spherical(h, *cof) for h in xi]
-    fig2 = plt.plot(xdata, ydata, 'og')
-    plt.plot(xi, yi, '-b');
-    plt.xlabel('Distance (m)')
-    plt.ylabel('Variance')
-    plt.show()
+    
+    if plot:
+        #print fit model
+        xi =np.linspace(xdata[0], xdata[-1], 100)
+        yi = [models.spherical(h, *cof) for h in xi]
+        fig2 = plt.plot(xdata, ydata, 'og')
+        plt.plot(xi, yi, '-b');
+        plt.xlabel('Distance (m)')
+        plt.ylabel('Variance')
+        plt.show()
 
     return range, sill, nugget, rmse, V, xdata, ydata
 
@@ -783,7 +803,7 @@ def aggregate_stable_stats(dod, polyshp, poly_id_field='id', poly_id=['all'], ma
 
             if pyinterp:
                 try:
-                    experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(scedf, scedodcellsize_x, max_range=max_range);
+                    experimental_variogram = SpatiallyCorrelatedRandomErrorAnalysis_CreateSemivariogram(scedf, scedodcellsize_x, max_range=max_range, plot=False);
                     fitted = SpatiallyCorrelatedRandomErrorAnalysis_FitSphericalModel(experimental_variogram)
                     df.loc[index,'pyinterp_sill'] = fitted['sill']
                     df.loc[index,'pyinterp_range'] = fitted['range']
