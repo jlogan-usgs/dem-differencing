@@ -537,7 +537,6 @@ def stable_area_stats(raster, polyshp, add_to_attribute_table: bool=False):
 
     #print stats
     print('Zonal statistics calculation complete.\n')
-    print(df)
 
     return df
 
