@@ -113,6 +113,13 @@ def DEM_difference(dem1, dem2, dod):
     
     print(f"****************\nRaster difference complete.\n    Performed the following operation:\n        {dem2.name} - {dem1.name} = {dod.name}\n\nOutput written to {dod}\n****************\n")
 
+def weighted_average(dataframe, value, weight):
+    '''
+    Calculate weighted average of a dataframe column, with vals and weights in columns
+    ''' 
+    val = dataframe[value]
+    wt = dataframe[weight]
+    return (val * wt).sum() / wt.sum()
 
 def clip_raster_with_polygon(unclipped_raster, clip_shapefile, out_raster):
     '''
@@ -832,13 +839,21 @@ def calculateVolumetricUncertainty(dod, sigma_sys, scre_sill, scre_range, sigma_
     
     #get cell size, volumes, and areas using calculate_volume function
     voldf = calculate_volume(dod)
-    #add columns for data
+    #drop, rename cellsize cols
+    voldf.drop(['cellsize_y'], axis=1, inplace=True)
+    voldf.rename(columns={'cellsize_x': 'cellsize'}, inplace=True)
+    #insert total uncertainty columns at left for ease of use
+    voldf.insert(4,'net_total_vol_error',None)
+    voldf.insert(7,'deposition_total_vol_error',None)
+    voldf.insert(10,'erosion_total_vol_error',None)    
+    #add columns for additional values
     voldf.loc[:, ['confidence_level','sigma_sys','scre_sill','scre_range','sigma_re',
                  'net_mean_re', 'net_vol_re', 'deposition_mean_re', 'deposition_vol_re', 'erosion_mean_re', 'erosion_vol_re',
                  'net_mean_scre', 'net_vol_scre', 'deposition_mean_scre', 'deposition_vol_scre', 'erosion_mean_scre', 'erosion_vol_scre', 
-                  'net_mean_sys', 'net_vol_sys', 'deposition_mean_sys', 'deposition_vol_sys', 'erosion_mean_sys', 'erosion_vol_sys',
-                 'net_total_vol_error', 'deposition_total_vol_error', 'erosion_total_vol_error'              
+                  'net_mean_sys', 'net_vol_sys', 'deposition_mean_sys', 'deposition_vol_sys', 'erosion_mean_sys', 'erosion_vol_sys'
              ]] = None
+             
+    #populate
     voldf['confidence_level']=confidence_level
     voldf['sigma_sys']=sigma_sys
     voldf['scre_sill']=scre_sill
@@ -849,9 +864,9 @@ def calculateVolumetricUncertainty(dod, sigma_sys, scre_sill, scre_range, sigma_
     if confidence_level == 95:
         sigma_re = sigma_re * 1.96
     for prefix in ['net', 'deposition', 'erosion']:
-        n = voldf[prefix + '_area'].values[0] / voldf['cellsize_x'].values[0] / voldf['cellsize_y'].values[0]
+        n = voldf[prefix + '_area'].values[0] / voldf['cellsize'].values[0] / voldf['cellsize'].values[0]
         voldf[prefix + '_mean_re'] = sigma_re / np.sqrt(n)
-        voldf[prefix + '_vol_re'] = np.sqrt(n) * np.square(voldf['cellsize_x'].values[0]) * sigma_re
+        voldf[prefix + '_vol_re'] = np.sqrt(n) * np.square(voldf['cellsize'].values[0]) * sigma_re
 
     # Spatially correlated random error (equations 14 and 16)
     sigma_sc = np.sqrt(scre_sill)
@@ -859,18 +874,18 @@ def calculateVolumetricUncertainty(dod, sigma_sys, scre_sill, scre_range, sigma_
     if confidence_level == 95:
         sigma_sc = sigma_sc * 1.96
     for prefix in ['net', 'deposition', 'erosion']:
-        n = voldf[prefix + '_area'].values[0] / voldf['cellsize_x'].values[0] / voldf['cellsize_y'].values[0]
-        voldf[prefix + '_mean_scre'] = (sigma_sc / np.sqrt(n)) * np.sqrt((np.pi * np.square(scre_range)) / 5 * np.square(voldf['cellsize_x'].values[0]))
-        voldf[prefix + '_vol_scre'] = 0.79 * scre_range * np.sqrt(n) * voldf['cellsize_x'].values[0] * sigma_sc
+        n = voldf[prefix + '_area'].values[0] / voldf['cellsize'].values[0] / voldf['cellsize'].values[0]
+        voldf[prefix + '_mean_scre'] = (sigma_sc / np.sqrt(n)) * np.sqrt((np.pi * np.square(scre_range)) / 5 * np.square(voldf['cellsize'].values[0]))
+        voldf[prefix + '_vol_scre'] = 0.79 * scre_range * np.sqrt(n) * voldf['cellsize'].values[0] * sigma_sc
 
     # Systematic error (equation 20)
     # sigma_sys = Residual systematic error in adjusted (final) DoD.
     #    Here the mean of residuals in stable areas of the adjusted (final) DoD is interpreted as the mean systematic uncertainty.
     #    Unsure if this represents 1 sigma or 2 sigma?  Does it need to be multiplied by 1.96 if desired conf_level is 95%?  (I don't know)
     for prefix in ['net', 'deposition', 'erosion']:
-        n = voldf[prefix + '_area'].values[0] / voldf['cellsize_x'].values[0] / voldf['cellsize_y'].values[0]    
+        n = voldf[prefix + '_area'].values[0] / voldf['cellsize'].values[0] / voldf['cellsize'].values[0]    
         voldf[prefix + '_mean_sys'] = sigma_sys
-        voldf[prefix + '_vol_sys'] = n * np.square(voldf['cellsize_x'].values[0]) * sigma_sys
+        voldf[prefix + '_vol_sys'] = n * np.square(voldf['cellsize'].values[0]) * sigma_sys
 
     #Calc total vol uncertainties
     for prefix in ['net', 'deposition', 'erosion']:
@@ -878,13 +893,13 @@ def calculateVolumetricUncertainty(dod, sigma_sys, scre_sill, scre_range, sigma_
                                                      + np.square(voldf[prefix + '_vol_scre'].values[0]) 
                                                      + np.square(voldf[prefix + '_vol_sys'].values[0])
                                                     )
-    cols = ['dod', 'cellsize_x', 'net_vol', 'net_total_vol_error', 'net_area', 'net_vol_re', 'net_vol_scre','net_vol_sys']
+    cols = ['dod', 'cellsize', 'net_vol', 'net_total_vol_error', 'net_area', 'net_vol_re', 'net_vol_scre','net_vol_sys']
     netdf = voldf[cols]
     
-    cols = ['dod', 'cellsize_x', 'deposition_vol', 'deposition_total_vol_error', 'deposition_area', 'deposition_vol_re', 'deposition_vol_scre','deposition_vol_sys']
+    cols = ['dod', 'cellsize', 'deposition_vol', 'deposition_total_vol_error', 'deposition_area', 'deposition_vol_re', 'deposition_vol_scre','deposition_vol_sys']
     depositiondf = voldf[cols]
     
-    cols = ['dod', 'cellsize_x', 'erosion_vol', 'erosion_total_vol_error', 'erosion_area', 'erosion_vol_re', 'erosion_vol_scre','erosion_vol_sys']
+    cols = ['dod', 'cellsize', 'erosion_vol', 'erosion_total_vol_error', 'erosion_area', 'erosion_vol_re', 'erosion_vol_scre','erosion_vol_sys']
     erosiondf = voldf[cols]
     
     return voldf, netdf, depositiondf, erosiondf
