@@ -524,11 +524,12 @@ def stable_area_stats(raster, polyshp, add_to_attribute_table: bool=False):
         # Get the affine transformation from the raster
         transform = src.transform
         # Perform the zonal statistics using rasterstats
-        stats = zonal_stats(shapefile, raster_values, affine=transform, nodata=src.nodata, stats=['mean', 'max', 'min', 'std', 'sum'], add_stats={'mae':mae})
+        stats = zonal_stats(shapefile, raster_values, affine=transform, nodata=src.nodata, stats=['mean', 'median', 'max', 'min', 'std', 'sum'], add_stats={'mae':mae})
     
     # Extract the statistics and add them as new attributes in the shapefile
     shapefile['raster'] = raster.name
     shapefile['mean'] = [stat['mean'] for stat in stats]
+    shapefile['median'] = [stat['median'] for stat in stats]
     shapefile['max'] = [stat['max'] for stat in stats]
     shapefile['min'] = [stat['min'] for stat in stats]
     shapefile['std'] = [stat['std'] for stat in stats]
@@ -536,7 +537,7 @@ def stable_area_stats(raster, polyshp, add_to_attribute_table: bool=False):
     shapefile['mae'] = [stat['mae'] for stat in stats]
     shapefile['area_m_sq'] = shapefile['geometry'].area
 
-    df = shapefile[['id','mean','max','min','std','sum','mae','area_m_sq']]
+    df = shapefile[['id','mean','median','max','min','std','sum','mae','area_m_sq']]
        
     if add_to_attribute_table:
         # Save attributes to the updated shapefile
@@ -848,9 +849,9 @@ def calculateVolumetricUncertainty(dod, sigma_sys, scre_sill, scre_range, sigma_
     voldf.insert(10,'erosion_total_vol_error',None)    
     #add columns for additional values
     voldf.loc[:, ['confidence_level','sigma_sys','scre_sill','scre_range','sigma_re',
-                 'net_mean_re', 'net_vol_re', 'deposition_mean_re', 'deposition_vol_re', 'erosion_mean_re', 'erosion_vol_re',
-                 'net_mean_scre', 'net_vol_scre', 'deposition_mean_scre', 'deposition_vol_scre', 'erosion_mean_scre', 'erosion_vol_scre', 
-                  'net_mean_sys', 'net_vol_sys', 'deposition_mean_sys', 'deposition_vol_sys', 'erosion_mean_sys', 'erosion_vol_sys'
+                 'net_mean_re', 'net_vol_re', 'net_mean_scre', 'net_vol_scre', 'net_mean_sys', 'net_vol_sys',
+                 'deposition_mean_re', 'deposition_vol_re', 'deposition_mean_scre', 'deposition_vol_scre','deposition_mean_sys', 'deposition_vol_sys',
+                 'erosion_mean_re', 'erosion_vol_re', 'erosion_mean_scre', 'erosion_vol_scre', 'erosion_mean_sys', 'erosion_vol_sys'                    
              ]] = None
              
     #populate
