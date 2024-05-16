@@ -236,10 +236,10 @@ def create_polygon_from_points(points_file, output_shapefile, x_col='x', y_col='
     # Create a GeoDataFrame with the polygon, set crs
     data = gpd.GeoDataFrame(geometry=[polygon], crs=in_crs_epsg)
     
-    # Transform the polygon to EPSG 6339
+    # Transform the polygon to output crs (default=EPSG:6339)
     data = data.to_crs(out_crs_epsg)
 
-    # Save the GeoDataFrame as a shapefile with EPSG 6339
+    # Save the GeoDataFrame as a shapefile 
     data.to_file(output_shapefile, driver='ESRI Shapefile')
     
 
@@ -254,6 +254,7 @@ def raster_outline_to_polyshp(inras, outpolyshp):
     
     with rasterio.open(inras) as ds:
         gdf = gpd.GeoDataFrame.from_features(dataset_features(ds, bidx=1, as_mask=True, geographic=False, band=False))
+        gdf = gdf.set_crs(ds.crs)
         gdf.to_file(outpolyshp)
 
     print(f'****************\nPolygon shapefile saved to {outpolyshp}\n****************\n')
