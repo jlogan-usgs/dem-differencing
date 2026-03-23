@@ -26,7 +26,7 @@ from rasterio.features import rasterize
 from rasterstats import zonal_stats
 
 # For spatial semivariogram
-from pyinterpolate import read_txt
+#from pyinterpolate import read_txt
 from pyinterpolate import build_experimental_variogram
 from pyinterpolate import TheoreticalVariogram, build_theoretical_variogram
 
@@ -332,7 +332,7 @@ def integer_align_raster(inras, outras):
     #gdalwarp
     ds = gdal.Warp(str(outras), src, format='GTiff', outputBounds=[t_ulx, t_lry, t_lrx, t_uly], xRes=xres, yRes=yres, targetAlignedPixels=True, resampleAlg=gdal.GRA_Bilinear, creationOptions=['COMPRESS=LZW'])
 
-    print(f'****************\nAlignment complete.\n    Input cell size: {xres}\n    Input origin: {ulx}, {uly}\n\n    Output cell size: {new_cell_size}\n    Output origin: {t_ulx}, {t_uly}\n\nInteger aligned raster written to: {outras}\n****************\n')
+    print(f'****************\nAlignment complete.\n    Input cell size: {xres}\n    Input origin: {ulx}, {uly}\n\n    Output cell size: {xres_in}\n    Output origin: {t_ulx}, {t_uly}\n\nInteger aligned raster written to: {outras}\n****************\n')
 
 def integer_align_resample_raster_bilinear(inras, new_cell_size, outras):
     '''
